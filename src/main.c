@@ -19,6 +19,7 @@
 #include "net/server.h"
 
 #include "pipeline/types.h"
+#include "pipeline/pipeline.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -245,6 +246,25 @@ int main(int argc, char **argv)
     log_info("open http://<this-machine-ip>:%d/ in a LAN browser. Ctrl+C to stop.",
              cfg.port);
 
+    /* 6.5 启动流水线（捕获+编码线程），向 WS 客户端实时推流。
+     *     仅当捕获和编码都就绪时启动。 */
+    pipeline_t *pipe = NULL;
+    if (cap && enc) {
+        pipeline_opts_t popts = {
+            .cap = cap, .enc = enc, .srv = srv,
+            .fps = cfg.fps, .queue_cap = 0
+        };
+        rc = pipeline_start(&pipe, &popts);
+        if (rc != ERR_OK) {
+            log_warn("pipeline start failed (%s) - serving page only", err_str(rc));
+            pipe = NULL;
+        } else {
+            log_info("pipeline running: capture -> encode -> WebSocket broadcast");
+        }
+    } else {
+        log_warn("capture/encoder not ready - serving static page only (no stream)");
+    }
+
     /* 7. 进入事件循环（阻塞直到收到退出信号） */
     rc = server_run(srv, &g_running);
     if (rc != ERR_OK)
@@ -252,6 +272,8 @@ int main(int argc, char **argv)
 
     /* 8. 优雅清理（与创建顺序相反） */
     log_info("shutting down...");
+    if (pipe)
+        pipeline_stop(pipe);   /* 先停线程，再关上游模块 */
     server_destroy(srv);
     encoder_close(enc);
     capture_close(cap);

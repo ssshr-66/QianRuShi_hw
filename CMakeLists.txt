@@ -46,6 +46,7 @@ set(SOURCES
     src/common/config.c
     src/pipeline/types.c
     src/pipeline/queue.c
+    src/pipeline/pipeline.c
     src/capture/capture_x11.c
     src/encode/encoder_ffmpeg.c
     src/net/server.c
