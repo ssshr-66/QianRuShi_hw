@@ -17,6 +17,7 @@ void config_init_defaults(server_config_t *cfg)
     cfg->verbose  = false;
     cfg->web_root = "web";
     cfg->grab_test = false;
+    cfg->encode_test = false;
 }
 
 static void print_usage(const char *prog)
@@ -29,6 +30,7 @@ static void print_usage(const char *prog)
     printf("  -r, --web-root DIR    static web assets dir (default \"web\")\n");
     printf("  -v, --verbose         enable debug logging\n");
     printf("  -g, --grab-test       capture one frame to /tmp/grab_test.ppm and exit\n");
+    printf("  -e, --encode-test     capture+encode ~60 frames to /tmp/encode_test.h264 and exit\n");
     printf("  -h, --help            show this help\n");
 }
 
@@ -42,12 +44,13 @@ int config_parse_args(server_config_t *cfg, int argc, char **argv)
         {"web-root", required_argument, 0, 'r'},
         {"verbose",   no_argument,      0, 'v'},
         {"grab-test", no_argument,      0, 'g'},
+        {"encode-test", no_argument,    0, 'e'},
         {"help",     no_argument,       0, 'h'},
         {0, 0, 0, 0}
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "p:f:b:s:r:vgh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "p:f:b:s:r:vgeh", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'p':
             cfg->port = atoi(optarg);
@@ -72,6 +75,9 @@ int config_parse_args(server_config_t *cfg, int argc, char **argv)
             break;
         case 'g':
             cfg->grab_test = true;
+            break;
+        case 'e':
+            cfg->encode_test = true;
             break;
         case 'h':
             print_usage(argv[0]);

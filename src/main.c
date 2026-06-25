@@ -97,6 +97,72 @@ static int run_grab_test(capture_t *cap)
     return 0;
 }
 
+/*
+ * M2 自测：抓取并编码约 N 帧，写成裸 H.264 文件，可用 ffplay 播放。
+ *   ffplay /tmp/encode_test.h264
+ */
+static int run_encode_test(capture_t *cap, encoder_t *enc)
+{
+    if (!cap || !enc) {
+        log_error("encode-test: capture or encoder not available");
+        return 1;
+    }
+
+    const char *out = "/tmp/encode_test.h264";
+    FILE *fp = fopen(out, "wb");
+    if (!fp) {
+        log_error("encode-test: cannot open %s", out);
+        return 1;
+    }
+
+    const int target_frames = 60;
+    int encoded = 0;
+    size_t total_bytes = 0;
+
+    /* 第一帧强制关键帧，便于解码器起播 */
+    encoder_force_keyframe(enc);
+
+    for (int i = 0; i < target_frames * 20 && encoded < target_frames; ++i) {
+        frame_t *f = NULL;
+        int rc = capture_grab(cap, &f);
+        if (rc == ERR_AGAIN) {
+            struct timespec ts = { 0, 2 * 1000000L };
+            nanosleep(&ts, NULL);
+            continue;
+        }
+        if (rc != ERR_OK || !f) {
+            log_error("encode-test: capture failed: %s", err_str(rc));
+            fclose(fp);
+            return 1;
+        }
+
+        packet_t *pkt = NULL;
+        rc = encoder_encode(enc, f, &pkt);
+        frame_free(f);
+
+        if (rc == ERR_AGAIN)
+            continue;              /* 编码器暂无输出 */
+        if (rc != ERR_OK || !pkt) {
+            log_error("encode-test: encode failed: %s", err_str(rc));
+            fclose(fp);
+            return 1;
+        }
+
+        fwrite(pkt->data, 1, pkt->size, fp);
+        total_bytes += pkt->size;
+        encoded++;
+        log_debug("encode-test: frame %d -> %zu bytes key=%d",
+                  encoded, pkt->size, pkt->is_keyframe);
+        packet_free(pkt);
+    }
+
+    fclose(fp);
+    log_info("encode-test: wrote %d H.264 frames, %zu bytes -> %s",
+             encoded, total_bytes, out);
+    log_info("encode-test: play with:  ffplay %s", out);
+    return encoded > 0 ? 0 : 1;
+}
+
 int main(int argc, char **argv)
 {
     /* 1. 解析配置 */
@@ -155,6 +221,14 @@ int main(int argc, char **argv)
             log_warn("encoder init failed (%s) - continuing (M0)", err_str(rc));
         else
             log_info("encoder ready");
+    }
+
+    /* 5.5 M2 自测模式：抓取+编码若干帧存成 .h264 后退出 */
+    if (cfg.encode_test) {
+        int test_rc = run_encode_test(cap, enc);
+        encoder_close(enc);
+        capture_close(cap);
+        return test_rc;
     }
 
     /* 6. 启动网络服务（HTTP 静态托管）。M3/M4 会接入 WebSocket 推流。 */

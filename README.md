@@ -56,6 +56,16 @@ make && make run
 xdg-open /tmp/grab_test.ppm     # 或用 GIMP/eog 打开
 ```
 
+### M2 编码自测
+
+验证 H.264 编码是否工作（抓取+编码约 60 帧存成裸流）：
+
+```bash
+./build/desktop_stream --encode-test
+# 成功后生成 /tmp/encode_test.h264，用 ffplay 播放应能看到桌面录像
+ffplay /tmp/encode_test.h264
+```
+
 ---
 
 ## 当前进度
