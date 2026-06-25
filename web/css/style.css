@@ -1,0 +1,55 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #1a1a1a;
+  color: #eee;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #222;
+  border-bottom: 1px solid #333;
+}
+
+.topbar h1 { font-size: 16px; font-weight: 600; }
+
+.status {
+  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+.status--connecting { background: #665500; color: #ffd; }
+.status--live        { background: #0a5; color: #fff; }
+.status--reconnecting{ background: #850; color: #fff; }
+.status--disconnected{ background: #822; color: #fff; }
+
+.stats { font-size: 12px; color: #999; margin-left: auto; }
+
+.viewer {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+#screen {
+  max-width: 100%;
+  max-height: 100%;
+  background: #000;
+}
+
+.placeholder {
+  position: absolute;
+  text-align: center;
+  color: #888;
+  line-height: 1.8;
+}

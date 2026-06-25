@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LAN Desktop Stream</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>局域网桌面流</h1>
+    <span id="status" class="status status--connecting">未连接</span>
+    <span id="stats" class="stats"></span>
+  </header>
+
+  <main class="viewer">
+    <!-- 视频帧渲染目标。M5 会用 Canvas/WebCodecs 解码绘制 -->
+    <canvas id="screen" width="1280" height="720"></canvas>
+    <p id="placeholder" class="placeholder">
+      M0 骨架：服务端正在托管此页面。<br/>
+      实时画面将在 M4/M5（WebSocket 推流 + 解码渲染）完成后显示。
+    </p>
+  </main>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

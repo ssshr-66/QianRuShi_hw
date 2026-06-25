@@ -1,0 +1,23 @@
+# 构建产物
+build/
+build-*/
+*.o
+*.a
+*.so
+*.out
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# 编辑器/系统
+.DS_Store
+*.swp
+*~
+
+# 调试/日志
+*.log
+core
+vgcore.*
