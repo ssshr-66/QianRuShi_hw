@@ -30,6 +30,9 @@ export class Renderer {
         try {
           this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
           this.drawnCount++;
+          if (this.drawnCount === 1)
+            console.log('[renderer] first drawImage done, canvas=' +
+                        this.canvas.width + 'x' + this.canvas.height);
         } finally {
           frame.close();   // 必须释放，否则 GPU 内存泄漏
         }
