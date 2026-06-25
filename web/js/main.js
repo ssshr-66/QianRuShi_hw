@@ -20,29 +20,24 @@ function setStatus(state) {
   statusEl.className = 'status status--' + state;
 }
 
+let frameCount = 0;
+
 function onMessage(buf) {
-  // TODO(M5): parseFrame(buf) -> decoder -> renderer
+  // M3：能收到消息说明 WebSocket 推流通；M5 会真正解码渲染
+  frameCount++;
   try {
     const frame = parseFrame(buf);
-    // 占位：M5 会把 frame.payload 送入解码器
-    void frame;
-    placeholderEl.style.display = 'none';
+    placeholderEl.textContent =
+      `M3：已收到 ${frameCount} 个数据帧（${frame.payload.length} bytes，` +
+      `${frame.isKeyframe ? '关键帧' : 'P帧'}）。M5 将解码渲染。`;
   } catch (e) {
-    console.warn('frame parse error:', e.message);
+    // M3 阶段服务端可能还没按帧协议发送，收到任何二进制都算连接成功
+    placeholderEl.textContent = `M3：WebSocket 已收到 ${buf.byteLength} bytes 数据。`;
   }
 }
 
-// M0：页面能加载即说明服务端静态托管正常。
-// 暂不自动连接 WebSocket（服务端 M3/M4 才提供 /stream）。
-setStatus('connecting');
-statusEl.textContent = 'M0：等待推流功能（M4/M5）';
+// M3：连接 WebSocket，验证握手与连接（服务端 M4 才会真正推流）
+const sock = new StreamSocket(onMessage, setStatus);
+sock.connect();
 
-// 预留：后续启用实时连接时取消注释
-// const sock = new StreamSocket(onMessage, setStatus);
-// sock.connect();
-
-// 避免未使用告警（M0 占位）
-void StreamSocket;
-void onMessage;
-
-console.log('Web client loaded (M0 skeleton). Static hosting works.');
+console.log('Web client loaded (M3). Connecting WebSocket...');

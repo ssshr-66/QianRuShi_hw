@@ -49,6 +49,7 @@ set(SOURCES
     src/capture/capture_x11.c
     src/encode/encoder_ffmpeg.c
     src/net/server.c
+    src/net/ws.c
     src/protocol/frame_proto.c
 )
 

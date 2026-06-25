@@ -66,6 +66,19 @@ xdg-open /tmp/grab_test.ppm     # 或用 GIMP/eog 打开
 ffplay /tmp/encode_test.h264
 ```
 
+### M3 网络服务（epoll + WebSocket）
+
+正常启动服务，用浏览器验证 WebSocket 握手：
+
+```bash
+./scripts/run.sh -v        # -v 开 debug 日志，能看到客户端连接/升级
+# 浏览器打开 http://localhost:8080/
+# 页面状态应从“连接中”变为“直播中”，服务端日志出现：
+#   client ... upgraded to WebSocket
+```
+
+> M3 只验证连接与握手；真正的实时帧推送在 M4（流水线整合）完成。
+
 ---
 
 ## 当前进度
