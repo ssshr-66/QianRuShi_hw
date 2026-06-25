@@ -55,18 +55,39 @@ export class H264Decoder {
 
     const codec = this._findSpsCodec(payload) || 'avc1.42E01F';
     this.decoder = new VideoDecoder({
-      output: (frame) => this.onFrame(frame),
+      output: (frame) => {
+        this.decodedCount = (this.decodedCount || 0) + 1;
+        if (this.decodedCount === 1)
+          console.log('[decoder] first VideoFrame output:',
+                      frame.displayWidth + 'x' + frame.displayHeight);
+        this.onFrame(frame);
+      },
       error: (e) => {
-        console.error('VideoDecoder error:', e.message);
+        console.error('[decoder] VideoDecoder error:', e.message);
         this.errored = true;
       },
     });
-    this.decoder.configure({
+
+    const config = {
       codec,
       optimizeForLatency: true,
-    });
-    this.configured = true;
-    console.log('VideoDecoder configured with codec', codec);
+    };
+    // 检查浏览器是否支持该配置
+    if (VideoDecoder.isConfigSupported) {
+      VideoDecoder.isConfigSupported(config).then((s) => {
+        console.log('[decoder] isConfigSupported:', s.supported, 'codec:', codec);
+      }).catch((e) => console.warn('[decoder] isConfigSupported check failed', e));
+    }
+
+    try {
+      this.decoder.configure(config);
+      this.configured = true;
+      console.log('[decoder] configured with codec', codec);
+    } catch (e) {
+      console.error('[decoder] configure failed:', e.message);
+      this.errored = true;
+      return false;
+    }
     return true;
   }
 
@@ -83,22 +104,29 @@ export class H264Decoder {
     if (!this.gotKeyframe) {
       if (!isKeyframe) return;     // 丢弃起播前的 P 帧
       this.gotKeyframe = true;
+      console.log('[decoder] got first keyframe, start decoding');
     }
 
     if (!this._ensureConfigured(payload)) return;
     if (this.decoder.state !== 'configured') return;
 
+    // 用单调递增的帧序号作为 timestamp（微秒），避免墙钟时间戳乱序
+    this._ts = (this._ts || 0) + 1;
+
     // payload 是 Uint8Array 的视图，复制一份独立 buffer 给 chunk
     const data = payload.slice();
     const chunk = new EncodedVideoChunk({
       type: isKeyframe ? 'key' : 'delta',
-      timestamp: timestamp * 1000, // 微秒
+      timestamp: this._ts * 33333, // 微秒，约 30fps 间隔
       data,
     });
     try {
       this.decoder.decode(chunk);
+      this.sentCount = (this.sentCount || 0) + 1;
+      if (this.sentCount === 1)
+        console.log('[decoder] first chunk sent to decoder, bytes=' + data.length);
     } catch (e) {
-      console.error('decode() threw:', e.message);
+      console.error('[decoder] decode() threw:', e.message);
       this.errored = true;
     }
   }
