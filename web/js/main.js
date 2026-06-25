@@ -44,13 +44,18 @@ let lastStatsT = performance.now();
 let lastDrawn = 0;
 let firstFrameShown = false;
 
+// 端到端延迟统计（EMA 平滑）：最近一帧 = 收到时刻 - 帧捕获时间戳(ms)
+let latencyEmaMs = 0;
+let latencySamples = 0;
+
 function updateStats() {
   const now = performance.now();
   const dt = (now - lastStatsT) / 1000;
   if (dt >= 1) {
     const fps = ((renderer.drawnCount - lastDrawn) / dt).toFixed(1);
+    const lat = latencySamples > 0 ? latencyEmaMs.toFixed(0) : '--';
     statsEl.textContent =
-      `渲染 ${fps} fps | 收包 ${recvFrames} | ${(recvBytes / 1024).toFixed(0)} KB`;
+      `${fps} fps | 延迟 ${lat} ms | 收包 ${recvFrames} | ${(recvBytes / 1024).toFixed(0)} KB`;
     lastStatsT = now;
     lastDrawn = renderer.drawnCount;
   }
@@ -68,6 +73,17 @@ function onMessage(buf) {
   }
   recvFrames++;
   recvBytes += buf.byteLength;
+
+  // 端到端延迟 = 客户端当前时间(墙钟,ms) - 帧捕获时间戳(墙钟,ms)
+  // 要求 Mac 与虚拟机时钟差不多对齐(NTP)；偶尔会有负数(时钟差)，按 0 处理。
+  const nowMs = Date.now();
+  const latency = nowMs - frame.timestamp;
+  if (latency >= 0 && latency < 60000) {  // 过滤异常值
+    const alpha = 0.2; // EMA 平滑因子
+    latencyEmaMs = latencySamples === 0 ? latency
+                                        : alpha * latency + (1 - alpha) * latencyEmaMs;
+    latencySamples++;
+  }
 
   decoder.decode(frame.payload, frame.isKeyframe, frame.timestamp);
 

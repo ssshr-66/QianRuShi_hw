@@ -24,7 +24,7 @@
 #include <pthread.h>
 #include <time.h>
 
-#define DEFAULT_QUEUE_CAP   8
+#define DEFAULT_QUEUE_CAP   2          /* 低延迟：只缓冲 1-2 帧，超过就丢最旧 */
 #define PERIODIC_KEY_MS     1000   /* 每秒强制一个关键帧，利于新客户端起播 */
 
 struct pipeline {
