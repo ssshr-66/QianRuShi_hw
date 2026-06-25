@@ -21,18 +21,30 @@ export class Renderer {
       if (this.latest) {
         const frame = this.latest;
         this.latest = null;
-        // 按视频实际尺寸调整 canvas 背景缓冲
-        if (this.canvas.width !== frame.displayWidth ||
-            this.canvas.height !== frame.displayHeight) {
-          this.canvas.width = frame.displayWidth;
-          this.canvas.height = frame.displayHeight;
+        const w = frame.displayWidth || frame.codedWidth;
+        const h = frame.displayHeight || frame.codedHeight;
+        if (this.canvas.width !== w || this.canvas.height !== h) {
+          this.canvas.width = w;
+          this.canvas.height = h;
         }
         try {
-          this.ctx.drawImage(frame, 0, 0, this.canvas.width, this.canvas.height);
+          this.ctx.drawImage(frame, 0, 0, w, h);
           this.drawnCount++;
-          if (this.drawnCount === 1)
-            console.log('[renderer] first drawImage done, canvas=' +
-                        this.canvas.width + 'x' + this.canvas.height);
+          if (this.drawnCount === 1) {
+            console.log('[renderer] first draw, frame format=' + frame.format +
+                        ' coded=' + frame.codedWidth + 'x' + frame.codedHeight +
+                        ' display=' + frame.displayWidth + 'x' + frame.displayHeight);
+            // 取画布左上角像素，确认画上去的内容是不是全黑
+            try {
+              const px = this.ctx.getImageData(0, 0, 1, 1).data;
+              console.log('[renderer] top-left pixel after draw:',
+                          px[0], px[1], px[2], px[3]);
+            } catch (e) {
+              console.warn('[renderer] getImageData failed:', e.message);
+            }
+          }
+        } catch (e) {
+          console.error('[renderer] drawImage failed:', e.message);
         } finally {
           frame.close();   // 必须释放，否则 GPU 内存泄漏
         }
