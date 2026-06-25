@@ -93,6 +93,18 @@ ffplay /tmp/encode_test.h264
 > 浏览器此时只“收到”帧，还不能解码显示画面，真正出画面在 M5。
 > 可在 F12 → Network → WS 里看到二进制帧持续到达。
 
+### M5 浏览器解码渲染（看到实时桌面）
+
+```bash
+./scripts/run.sh
+# 用 Chrome / Chromium / Edge 打开 http://localhost:8080/
+# 页面应实时显示服务端桌面画面，右上角有渲染 fps / 收包统计
+```
+
+> ⚠️ 解码用 WebCodecs（VideoDecoder），需要 **Chrome/Chromium/Edge**（较新版本）。
+> Firefox 旧版本可能不支持，页面会提示“当前浏览器不支持 WebCodecs”。
+> 在 Ubuntu 安装 Chromium：`sudo snap install chromium` 或 `sudo apt install chromium-browser`。
+
 ---
 
 ## 当前进度

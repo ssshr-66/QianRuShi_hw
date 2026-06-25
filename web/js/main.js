@@ -1,13 +1,17 @@
 /*
- * main.js - Web 客户端入口（M0 骨架）
+ * main.js - Web 客户端入口（M5：解码渲染）
  *
- * 当前状态：仅做 UI 状态展示。M5 会接入 socket -> protocol -> decoder -> renderer。
+ * 数据流：socket(收二进制) -> protocol(解析帧) -> decoder(H.264解码) -> renderer(Canvas绘制)
  */
 import { StreamSocket } from './socket.js';
 import { parseFrame } from './protocol.js';
+import { H264Decoder } from './decoder.js';
+import { Renderer } from './renderer.js';
 
 const statusEl = document.getElementById('status');
+const statsEl = document.getElementById('stats');
 const placeholderEl = document.getElementById('placeholder');
+const canvas = document.getElementById('screen');
 
 function setStatus(state) {
   const labels = {
@@ -20,24 +24,60 @@ function setStatus(state) {
   statusEl.className = 'status status--' + state;
 }
 
-let frameCount = 0;
+// WebCodecs 支持检测
+if (!H264Decoder.isSupported()) {
+  setStatus('disconnected');
+  placeholderEl.textContent =
+    '当前浏览器不支持 WebCodecs（VideoDecoder）。请用较新版本的 Chrome/Edge 打开。';
+  throw new Error('WebCodecs not supported');
+}
+
+const renderer = new Renderer(canvas);
+renderer.start();
+
+const decoder = new H264Decoder((frame) => renderer.push(frame));
+
+// 统计
+let recvFrames = 0;
+let recvBytes = 0;
+let lastStatsT = performance.now();
+let lastDrawn = 0;
+let firstFrameShown = false;
+
+function updateStats() {
+  const now = performance.now();
+  const dt = (now - lastStatsT) / 1000;
+  if (dt >= 1) {
+    const fps = ((renderer.drawnCount - lastDrawn) / dt).toFixed(1);
+    statsEl.textContent =
+      `渲染 ${fps} fps | 收包 ${recvFrames} | ${(recvBytes / 1024).toFixed(0)} KB`;
+    lastStatsT = now;
+    lastDrawn = renderer.drawnCount;
+  }
+  requestAnimationFrame(updateStats);
+}
+requestAnimationFrame(updateStats);
 
 function onMessage(buf) {
-  // M3：能收到消息说明 WebSocket 推流通；M5 会真正解码渲染
-  frameCount++;
+  let frame;
   try {
-    const frame = parseFrame(buf);
-    placeholderEl.textContent =
-      `M3：已收到 ${frameCount} 个数据帧（${frame.payload.length} bytes，` +
-      `${frame.isKeyframe ? '关键帧' : 'P帧'}）。M5 将解码渲染。`;
+    frame = parseFrame(buf);
   } catch (e) {
-    // M3 阶段服务端可能还没按帧协议发送，收到任何二进制都算连接成功
-    placeholderEl.textContent = `M3：WebSocket 已收到 ${buf.byteLength} bytes 数据。`;
+    console.warn('frame parse error:', e.message);
+    return;
+  }
+  recvFrames++;
+  recvBytes += buf.byteLength;
+
+  decoder.decode(frame.payload, frame.isKeyframe, frame.timestamp);
+
+  if (!firstFrameShown) {
+    firstFrameShown = true;
+    placeholderEl.style.display = 'none'; // 有画面后隐藏占位文字
   }
 }
 
-// M3：连接 WebSocket，验证握手与连接（服务端 M4 才会真正推流）
 const sock = new StreamSocket(onMessage, setStatus);
 sock.connect();
 
-console.log('Web client loaded (M3). Connecting WebSocket...');
+console.log('Web client loaded (M5). Decoding + rendering enabled.');
