@@ -18,10 +18,13 @@
 #include "encode/encoder.h"
 #include "net/server.h"
 
+#include "pipeline/types.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <stdbool.h>
+#include <time.h>
 
 /* 运行标志，信号处理里置 false 以优雅退出 */
 static volatile bool g_running = true;
@@ -30,6 +33,68 @@ static void on_signal(int sig)
 {
     (void)sig;
     g_running = false;
+}
+
+/*
+ * M1 自测：把一帧 BGRA 像素写成 PPM(P6, RGB) 图片，便于肉眼确认截屏成功。
+ * 返回 0 成功。
+ */
+static int write_frame_ppm(const frame_t *f, const char *path)
+{
+    FILE *fp = fopen(path, "wb");
+    if (!fp) {
+        log_error("grab-test: cannot open %s", path);
+        return -1;
+    }
+    fprintf(fp, "P6\n%d %d\n255\n", f->width, f->height);
+    for (int y = 0; y < f->height; ++y) {
+        const uint8_t *row = f->data + (size_t)y * f->stride;
+        for (int x = 0; x < f->width; ++x) {
+            const uint8_t *px = row + x * 4; /* BGRA */
+            uint8_t rgb[3] = { px[2], px[1], px[0] }; /* R,G,B */
+            fwrite(rgb, 1, 3, fp);
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+
+/*
+ * M1 自测流程：抓一帧存图后退出。验证 X11/XShm 截屏链路。
+ */
+static int run_grab_test(capture_t *cap)
+{
+    if (!cap) {
+        log_error("grab-test: capture not available");
+        return 1;
+    }
+
+    const char *out = "/tmp/grab_test.ppm";
+    frame_t *f = NULL;
+    int rc = ERR_AGAIN;
+
+    /* 第一帧可能因 fps 节奏返回 AGAIN，循环抓到为止（最多重试若干次） */
+    for (int i = 0; i < 200 && rc == ERR_AGAIN; ++i) {
+        rc = capture_grab(cap, &f);
+        if (rc == ERR_AGAIN) {
+            struct timespec ts = { 0, 5 * 1000000L }; /* 5ms */
+            nanosleep(&ts, NULL);
+        }
+    }
+
+    if (rc != ERR_OK || !f) {
+        log_error("grab-test: capture_grab failed: %s", err_str(rc));
+        return 1;
+    }
+
+    log_info("grab-test: captured frame %dx%d, %zu bytes, ts=%llu",
+             f->width, f->height, f->size, (unsigned long long)f->timestamp);
+
+    if (write_frame_ppm(f, out) == 0)
+        log_info("grab-test: wrote %s  (open it to verify the screenshot)", out);
+
+    frame_free(f);
+    return 0;
 }
 
 int main(int argc, char **argv)
@@ -66,6 +131,13 @@ int main(int argc, char **argv)
         int w = 0, h = 0;
         capture_get_dimensions(cap, &w, &h);
         log_info("capture ready: desktop %dx%d", w, h);
+    }
+
+    /* 4.5 M1 自测模式：抓一帧存图后退出 */
+    if (cfg.grab_test) {
+        int test_rc = run_grab_test(cap);
+        capture_close(cap);
+        return test_rc;
     }
 
     /* 5. 探测编码器（验证 FFmpeg H.264 可用） */

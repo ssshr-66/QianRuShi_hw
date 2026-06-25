@@ -24,6 +24,7 @@ typedef struct {
     int  scale_h;       /* 输出高度，0=原始 */
     bool verbose;       /* 是否开启 DEBUG 日志 */
     const char *web_root; /* 静态网页根目录，默认 "web" */
+    bool grab_test;     /* M1 自测：抓一帧存成图片后退出 */
 } server_config_t;
 
 /* 用默认值初始化配置 */

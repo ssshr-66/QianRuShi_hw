@@ -16,6 +16,7 @@ void config_init_defaults(server_config_t *cfg)
     cfg->scale_h  = DEFAULT_SCALE_H;
     cfg->verbose  = false;
     cfg->web_root = "web";
+    cfg->grab_test = false;
 }
 
 static void print_usage(const char *prog)
@@ -27,6 +28,7 @@ static void print_usage(const char *prog)
     printf("  -s, --scale WxH       output scale, e.g. 1280x720 (default: native)\n");
     printf("  -r, --web-root DIR    static web assets dir (default \"web\")\n");
     printf("  -v, --verbose         enable debug logging\n");
+    printf("  -g, --grab-test       capture one frame to /tmp/grab_test.ppm and exit\n");
     printf("  -h, --help            show this help\n");
 }
 
@@ -38,13 +40,14 @@ int config_parse_args(server_config_t *cfg, int argc, char **argv)
         {"bitrate",  required_argument, 0, 'b'},
         {"scale",    required_argument, 0, 's'},
         {"web-root", required_argument, 0, 'r'},
-        {"verbose",  no_argument,       0, 'v'},
+        {"verbose",   no_argument,      0, 'v'},
+        {"grab-test", no_argument,      0, 'g'},
         {"help",     no_argument,       0, 'h'},
         {0, 0, 0, 0}
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "p:f:b:s:r:vh", long_opts, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "p:f:b:s:r:vgh", long_opts, NULL)) != -1) {
         switch (opt) {
         case 'p':
             cfg->port = atoi(optarg);
@@ -66,6 +69,9 @@ int config_parse_args(server_config_t *cfg, int argc, char **argv)
             break;
         case 'v':
             cfg->verbose = true;
+            break;
+        case 'g':
+            cfg->grab_test = true;
             break;
         case 'h':
             print_usage(argv[0]);

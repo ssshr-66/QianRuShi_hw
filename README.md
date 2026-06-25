@@ -46,6 +46,16 @@ make && make run
 
 查看所有参数：`./build/desktop_stream --help`
 
+### M1 截屏自测
+
+验证桌面捕获是否工作（抓一帧存成图片）：
+
+```bash
+./build/desktop_stream --grab-test
+# 成功后会生成 /tmp/grab_test.ppm，用图片查看器打开应能看到当前桌面
+xdg-open /tmp/grab_test.ppm     # 或用 GIMP/eog 打开
+```
+
 ---
 
 ## 当前进度
