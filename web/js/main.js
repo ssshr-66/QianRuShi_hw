@@ -1,5 +1,5 @@
 /*
- * main.js - Web 客户端入口（M5：解码渲染）
+ * main.js - Web 客户端入口（M5：解码渲染 + M6：延迟显示）
  *
  * 数据流：socket(收二进制) -> protocol(解析帧) -> decoder(H.264解码) -> renderer(Canvas绘制)
  */
@@ -76,8 +76,8 @@ function onMessage(buf) {
   recvFrames++;
   recvBytes += buf.byteLength;
 
-  // 第一帧到达时校准时钟偏移：假设此时刻"网络延迟≈0"作为基线
-  // 后续每一帧的相对延迟 = (serverTs - clientTs) - 基线偏移
+  // 第一帧到达时校准时钟偏移：把那一刻"网络延迟≈0"作为基线
+  // 后续每一帧的相对延迟 = nowMs - (frame.ts - offset)
   const nowMs = Date.now();
   if (clockOffset === null) {
     clockOffset = frame.timestamp - nowMs;
@@ -85,46 +85,9 @@ function onMessage(buf) {
   }
   const relLatency = nowMs - (frame.timestamp - clockOffset);
   if (relLatency >= 0 && relLatency < 5000) {
-    const alpha = 0.2;
+    const alpha = 0.2; // EMA 平滑
     latencyEmaMs = latencySamples === 0 ? relLatency
                                         : alpha * relLatency + (1 - alpha) * latencyEmaMs;
-    latencySamples++;
-  }
-
-  decoder.decode(frame.payload, frame.isKeyframe, frame.timestamp);
-
-  if (!firstFrameShown) {
-    firstFrameShown = true;
-    placeholderEl.style.display = 'none';
-  }
-}
-  requestAnimationFrame(updateStats);
-}
-requestAnimationFrame(updateStats);
-
-function onMessage(buf) {
-  let frame;
-  try {
-    frame = parseFrame(buf);
-  } catch (e) {
-    console.warn('frame parse error:', e.message);
-    return;
-  }
-  recvFrames++;
-  recvBytes += buf.byteLength;
-
-  // 端到端延迟 = 客户端当前时间(墙钟,ms) - 帧捕获时间戳(墙钟,ms)
-  // 要求 Mac 与虚拟机时钟差不多对齐(NTP)；偶尔会有负数(时钟差)，按 0 处理。
-  const nowMs = Date.now();
-  const latency = nowMs - frame.timestamp;
-  if (recvFrames <= 3) {
-    console.log('[latency] nowMs=' + nowMs + ' frame.ts=' + frame.timestamp +
-                ' diff=' + latency + 'ms');
-  }
-  if (latency >= 0 && latency < 60000) {  // 过滤异常值
-    const alpha = 0.2; // EMA 平滑因子
-    latencyEmaMs = latencySamples === 0 ? latency
-                                        : alpha * latency + (1 - alpha) * latencyEmaMs;
     latencySamples++;
   }
 
@@ -139,4 +102,4 @@ function onMessage(buf) {
 const sock = new StreamSocket(onMessage, setStatus);
 sock.connect();
 
-console.log('Web client loaded (M5). Decoding + rendering enabled.');
+console.log('Web client loaded (M5+M6). Decoding + rendering + latency.');
