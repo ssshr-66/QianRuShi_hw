@@ -35,8 +35,10 @@ void log_write(log_level_t lvl, const char *file, int line, const char *fmt, ...
     /* 时间戳 */
     struct timespec ts;
     clock_gettime(CLOCK_REALTIME, &ts);
+
     struct tm tm_buf;
     localtime_r(&ts.tv_sec, &tm_buf);
+
     char timebuf[32];
     strftime(timebuf, sizeof(timebuf), "%Y-%m-%dT%H:%M:%S", &tm_buf);
 
