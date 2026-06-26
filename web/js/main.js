@@ -44,7 +44,9 @@ let lastStatsT = performance.now();
 let lastDrawn = 0;
 let firstFrameShown = false;
 
-// 端到端延迟统计（EMA 平滑）：最近一帧 = 收到时刻 - 帧捕获时间戳(ms)
+// 端到端延迟统计：服务端和客户端的墙钟通常不完全对齐，
+// 用"第一帧到达时的时钟差"做基准，后续帧的相对延迟就准确反映网络+解码延迟。
+let clockOffset = null;   // serverTs - clientTs 的基准值
 let latencyEmaMs = 0;
 let latencySamples = 0;
 
@@ -59,6 +61,43 @@ function updateStats() {
     lastStatsT = now;
     lastDrawn = renderer.drawnCount;
   }
+  requestAnimationFrame(updateStats);
+}
+requestAnimationFrame(updateStats);
+
+function onMessage(buf) {
+  let frame;
+  try {
+    frame = parseFrame(buf);
+  } catch (e) {
+    console.warn('frame parse error:', e.message);
+    return;
+  }
+  recvFrames++;
+  recvBytes += buf.byteLength;
+
+  // 第一帧到达时校准时钟偏移：假设此时刻"网络延迟≈0"作为基线
+  // 后续每一帧的相对延迟 = (serverTs - clientTs) - 基线偏移
+  const nowMs = Date.now();
+  if (clockOffset === null) {
+    clockOffset = frame.timestamp - nowMs;
+    console.log('[latency] clock offset calibrated:', clockOffset, 'ms');
+  }
+  const relLatency = nowMs - (frame.timestamp - clockOffset);
+  if (relLatency >= 0 && relLatency < 5000) {
+    const alpha = 0.2;
+    latencyEmaMs = latencySamples === 0 ? relLatency
+                                        : alpha * relLatency + (1 - alpha) * latencyEmaMs;
+    latencySamples++;
+  }
+
+  decoder.decode(frame.payload, frame.isKeyframe, frame.timestamp);
+
+  if (!firstFrameShown) {
+    firstFrameShown = true;
+    placeholderEl.style.display = 'none';
+  }
+}
   requestAnimationFrame(updateStats);
 }
 requestAnimationFrame(updateStats);
