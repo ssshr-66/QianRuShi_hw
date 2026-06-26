@@ -78,6 +78,10 @@ function onMessage(buf) {
   // 要求 Mac 与虚拟机时钟差不多对齐(NTP)；偶尔会有负数(时钟差)，按 0 处理。
   const nowMs = Date.now();
   const latency = nowMs - frame.timestamp;
+  if (recvFrames <= 3) {
+    console.log('[latency] nowMs=' + nowMs + ' frame.ts=' + frame.timestamp +
+                ' diff=' + latency + 'ms');
+  }
   if (latency >= 0 && latency < 60000) {  // 过滤异常值
     const alpha = 0.2; // EMA 平滑因子
     latencyEmaMs = latencySamples === 0 ? latency
